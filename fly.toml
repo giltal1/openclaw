@@ -7,6 +7,9 @@ primary_region = "ams" # change to your closest region
 [build]
 dockerfile = "Dockerfile"
 
+[build.args]
+OPENCLAW_DOCKER_APT_PACKAGES = "less vim"
+
 [env]
 NODE_ENV = "production"
 # Fly uses x86, but keep this for consistency
