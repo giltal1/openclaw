@@ -28,7 +28,6 @@ import crypto from "node:crypto";
 
 export const DISCORD_COMPONENT_CUSTOM_ID_KEY = "occomp";
 export const DISCORD_MODAL_CUSTOM_ID_KEY = "ocmodal";
-export const DISCORD_COMPONENT_ATTACHMENT_PREFIX = "attachment://";
 
 export type DiscordComponentButtonStyle = "primary" | "secondary" | "success" | "danger" | "link";
 
@@ -246,32 +245,6 @@ function normalizeModalFieldName(value: string | undefined, index: number) {
     return trimmed;
   }
   return `field_${index + 1}`;
-}
-
-function normalizeAttachmentRef(value: string, label: string): `attachment://${string}` {
-  const trimmed = value.trim();
-  if (!trimmed.startsWith(DISCORD_COMPONENT_ATTACHMENT_PREFIX)) {
-    throw new Error(`${label} must start with "${DISCORD_COMPONENT_ATTACHMENT_PREFIX}"`);
-  }
-  const attachmentName = trimmed.slice(DISCORD_COMPONENT_ATTACHMENT_PREFIX.length).trim();
-  if (!attachmentName) {
-    throw new Error(`${label} must include an attachment filename`);
-  }
-  return `${DISCORD_COMPONENT_ATTACHMENT_PREFIX}${attachmentName}`;
-}
-
-export function resolveDiscordComponentAttachmentName(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed.startsWith(DISCORD_COMPONENT_ATTACHMENT_PREFIX)) {
-    throw new Error(
-      `Attachment reference must start with "${DISCORD_COMPONENT_ATTACHMENT_PREFIX}"`,
-    );
-  }
-  const attachmentName = trimmed.slice(DISCORD_COMPONENT_ATTACHMENT_PREFIX.length).trim();
-  if (!attachmentName) {
-    throw new Error("Attachment reference must include a filename");
-  }
-  return attachmentName;
 }
 
 function mapButtonStyle(style?: DiscordComponentButtonStyle): ButtonStyle {
@@ -520,10 +493,9 @@ function parseComponentBlock(raw: unknown, label: string): DiscordComponentBlock
       };
     }
     case "file": {
-      const file = readString(obj.file, `${label}.file`);
       return {
         type: "file",
-        file: normalizeAttachmentRef(file, `${label}.file`),
+        file: readString(obj.file, `${label}.file`) as `attachment://${string}`,
         spoiler: typeof obj.spoiler === "boolean" ? obj.spoiler : undefined,
       };
     }
@@ -664,13 +636,9 @@ function createButtonComponent(params: {
   const style = mapButtonStyle(params.spec.style);
   const isLink = style === ButtonStyle.Link || Boolean(params.spec.url);
   if (isLink) {
-    if (!params.spec.url) {
-      throw new Error("Link buttons require a url");
-    }
-    const linkUrl = params.spec.url;
     class DynamicLinkButton extends LinkButton {
       label = params.spec.label;
-      url = linkUrl;
+      url = params.spec.url ?? "";
     }
     return { component: new DynamicLinkButton() };
   }
